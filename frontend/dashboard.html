@@ -68,7 +68,9 @@
     <div class="col-md-6">
       <div class="card h-100">
         <div class="card-body">
-          <h5 class="card-title mb-3">Répartition Phishing / Legit (sur les logs chargés)</h5>
+          <h5 class="card-title mb-3">
+            Répartition Phishing / Legit (sur les logs chargés)
+          </h5>
           <canvas id="chartVerdict"></canvas>
         </div>
       </div>
@@ -95,8 +97,7 @@
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody id="logsTableBody">
-          </tbody>
+          <tbody id="logsTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -107,8 +108,9 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+  // ⚠️ même API Render que sur index.html
   const API_BASE = "https://phishguard-54zp.onrender.com";
-  
+
   const logsTableBody = document.getElementById("logsTableBody");
   const logsCount = document.getElementById("logsCount");
 
@@ -125,21 +127,14 @@
   // Charge les logs depuis l'API avec les filtres actuels
   async function loadLogs() {
     const params = new URLSearchParams();
-
     const limitVal = filterLimit.value || "50";
     params.append("limit", limitVal);
 
-    if (filterVerdict.value) {
-      params.append("verdict", filterVerdict.value);
-    }
-    if (filterLabel.value) {
-      params.append("label", filterLabel.value);
-    }
+    if (filterVerdict.value) params.append("verdict", filterVerdict.value);
+    if (filterLabel.value) params.append("label", filterLabel.value);
     if (filterMinProb.value) {
       const val = parseFloat(filterMinProb.value);
-      if (!isNaN(val)) {
-        params.append("min_prob", val.toString());
-      }
+      if (!isNaN(val)) params.append("min_prob", val.toString());
     }
 
     const url = `${API_BASE}/api/logs?` + params.toString();
@@ -198,9 +193,11 @@
       ["tp", "tn", "fp", "fn"].forEach(lbl => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "btn btn-sm me-1 " + (
-          lbl === "fp" || lbl === "fn" ? "btn-outline-danger" : "btn-outline-success"
-        );
+        btn.className =
+          "btn btn-sm me-1 " +
+          (lbl === "fp" || lbl === "fn"
+            ? "btn-outline-danger"
+            : "btn-outline-success");
         btn.textContent = lbl.toUpperCase();
         btn.title = "Marquer comme " + lbl.toUpperCase();
         btn.addEventListener("click", () => markLabel(log.id, lbl));
@@ -236,7 +233,7 @@
     try {
       const response = await fetch(`${API_BASE}/api/report`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ log_id: logId, label })
       });
       if (!response.ok) {
@@ -281,7 +278,6 @@
     });
 
     const ctx = document.getElementById("chartVerdict");
-
     const data = {
       labels: ["Phishing", "Legit"],
       datasets: [{
@@ -299,9 +295,7 @@
         data: data,
         options: {
           responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
+          scales: { y: { beginAtZero: true } }
         }
       });
     }

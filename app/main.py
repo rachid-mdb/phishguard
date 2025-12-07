@@ -1,12 +1,13 @@
 # app/main.py
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+
 from datetime import datetime
 from typing import List, Optional
 import csv
 import io
 
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from bson import ObjectId  # fourni avec pymongo
 
 from .db import logs_collection
@@ -21,15 +22,26 @@ from .ml import phishing_model  # modèle ML
 
 app = FastAPI(title="PhishGuard API")
 
-# --- CORS pour autoriser les requêtes depuis ton frontend (file:// ou http://localhost) ---
+# =========================
+#   CORS
+# =========================
+# Origines autorisées (ton frontend Render + localhost)
+origins = [
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:5500",
+    "https://phishguard-1-nqbz.onrender.com",  # ton frontend Render
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # en prod, tu restreindras à ton domaine
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# ----------------------------------------------------------------------
+# =========================
 
 
 def oid(id_str: str) -> ObjectId:
@@ -57,13 +69,17 @@ def db_ping():
         doc = {
             "type": "ping",
             "timestamp": datetime.utcnow(),
-            "message": "Test connexion MongoDB"
+            "message": "Test connexion MongoDB",
         }
         result = logs_collection.insert_one(doc)
         return {"status": "ok", "inserted_id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur MongoDB : {e}")
 
+
+# =========================
+#   DÉTECTION /api/detect
+# =========================
 
 @app.post("/api/detect", response_model=DetectResponse)
 def detect(req: DetectRequest):
@@ -76,7 +92,7 @@ def detect(req: DetectRequest):
         proba, explanations, url_feats = phishing_model.predict(
             req.subject or "",
             req.body or "",
-            req.url or ""
+            req.url or "",
         )
         verdict = "phishing" if proba >= 0.5 else "legit"
 
@@ -111,7 +127,9 @@ def detect(req: DetectRequest):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur pendant la détection : {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Erreur pendant la détection : {e}"
+        )
 
 
 # =========================
@@ -149,12 +167,7 @@ def list_logs(
         if end_date:
             query["timestamp"]["$lte"] = datetime.fromisoformat(end_date)
 
-    cursor = (
-        logs_collection
-        .find(query)
-        .sort("timestamp", -1)
-        .limit(limit)
-    )
+    cursor = logs_collection.find(query).sort("timestamp", -1).limit(limit)
 
     logs: list[LogOut] = []
     for d in cursor:
@@ -175,6 +188,10 @@ def list_logs(
 
     return logs
 
+
+# =========================
+#   REPORT /api/report
+# =========================
 
 @app.post("/api/report")
 def report(req: ReportRequest):
@@ -199,6 +216,10 @@ def report(req: ReportRequest):
     return {"status": "ok", "updated": int(result.modified_count)}
 
 
+# =========================
+#   DELETE /api/logs/{id}
+# =========================
+
 @app.delete("/api/logs/{log_id}")
 def delete_log(log_id: str):
     """Supprime un log par son ID."""
@@ -221,7 +242,7 @@ async def import_csv(file: UploadFile = File(...)):
     - subject
     - body
     - url (optionnelle)
-    - label (optionnelle, 0/1)
+    - label (optionnelle, 0/1 ou fp/fn/tp/tn)
 
     Pour chaque ligne, on:
     - calcule la probabilité avec le modèle ML
@@ -240,7 +261,9 @@ async def import_csv(file: UploadFile = File(...)):
             subject = row.get("subject", "") or ""
             body = row.get("body", "") or ""
             url = row.get("url", "") or ""
-            label_raw = row.get("label", "").strip() if row.get("label") is not None else ""
+            label_raw = (
+                row.get("label", "").strip() if row.get("label") is not None else ""
+            )
 
             # Modèle ML
             proba, explanations, url_feats = phishing_model.predict(subject, body, url)
@@ -250,8 +273,7 @@ async def import_csv(file: UploadFile = File(...)):
             label = None
             if label_raw != "":
                 try:
-                    # tu peux utiliser 1/0 ou fp/fn/tp/tn selon ton CSV
-                    # ici on assume 1/0 -> phishing/legit
+                    # ex: 1/0 -> phishing/legit
                     val = int(label_raw)
                     label = "tp" if (val == 1 and verdict == "phishing") else None
                 except ValueError:
@@ -314,32 +336,36 @@ def export_csv(
         output = io.StringIO()
         writer = csv.writer(output)
         # entêtes CSV
-        writer.writerow([
-            "id",
-            "timestamp",
-            "subject",
-            "body",
-            "url",
-            "probability",
-            "verdict",
-            "label",
-            "domain",
-            "source_ip",
-        ])
+        writer.writerow(
+            [
+                "id",
+                "timestamp",
+                "subject",
+                "body",
+                "url",
+                "probability",
+                "verdict",
+                "label",
+                "domain",
+                "source_ip",
+            ]
+        )
 
         for d in cursor:
-            writer.writerow([
-                str(d.get("_id")),
-                d.get("timestamp").isoformat() if d.get("timestamp") else "",
-                d.get("subject", ""),
-                d.get("body", ""),
-                d.get("url", ""),
-                d.get("probability", ""),
-                d.get("verdict", ""),
-                d.get("label", ""),
-                d.get("domain", ""),
-                d.get("source_ip", ""),
-            ])
+            writer.writerow(
+                [
+                    str(d.get("_id")),
+                    d.get("timestamp").isoformat() if d.get("timestamp") else "",
+                    d.get("subject", ""),
+                    d.get("body", ""),
+                    d.get("url", ""),
+                    d.get("probability", ""),
+                    d.get("verdict", ""),
+                    d.get("label", ""),
+                    d.get("domain", ""),
+                    d.get("source_ip", ""),
+                ]
+            )
 
         csv_data = output.getvalue()
         output.close()
@@ -347,10 +373,10 @@ def export_csv(
         return Response(
             content=csv_data,
             media_type="text/csv",
-            headers={
-                "Content-Disposition": "attachment; filename=phishguard_logs.csv"
-            },
+            headers={"Content-Disposition": "attachment; filename=phishguard_logs.csv"},
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur pendant l'export CSV : {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Erreur pendant l'export CSV : {e}"
+        )

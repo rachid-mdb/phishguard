@@ -2,18 +2,34 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PhishGuard – Analyse de phishing</title>
+
   <!-- Bootstrap CSS -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
     rel="stylesheet"
   >
+
+  <!-- Font Awesome (icônes) -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
 </head>
 <body class="bg-light">
   <div class="container py-5">
+    <!-- En-tête -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="mb-0">PhishGuard – Détection de phishing</h1>
+      <h1 class="mb-0">
+        <i class="fa-solid fa-shield-halved text-primary me-2"></i>
+        PhishGuard – Détection de phishing
+      </h1>
       <a href="dashboard.html" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-chart-column me-1"></i>
         Voir le Dashboard
       </a>
     </div>
@@ -26,23 +42,38 @@
         <form id="analyseForm">
           <div class="mb-3">
             <label class="form-label">Sujet de l'email</label>
-            <input type="text" class="form-control" id="subject"
-                   placeholder="Ex: Urgent: vérifiez votre compte">
+            <input
+              type="text"
+              class="form-control"
+              id="subject"
+              placeholder="Ex: Urgent: vérifiez votre compte"
+            >
           </div>
 
           <div class="mb-3">
             <label class="form-label">Corps de l'email</label>
-            <textarea class="form-control" id="body" rows="5"
-                      placeholder="Collez ici le contenu de l'email..."></textarea>
+            <textarea
+              class="form-control"
+              id="body"
+              rows="5"
+              placeholder="Collez ici le contenu de l'email..."
+            ></textarea>
           </div>
 
           <div class="mb-3">
             <label class="form-label">URL (optionnelle)</label>
-            <input type="text" class="form-control" id="url"
-                   placeholder="Ex: http://192.168.1.10/login.php">
+            <input
+              type="text"
+              class="form-control"
+              id="url"
+              placeholder="Ex: http://192.168.1.10/login.php"
+            >
           </div>
 
-          <button type="submit" class="btn btn-primary">Analyser</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>
+            Analyser
+          </button>
         </form>
       </div>
     </div>
@@ -98,10 +129,24 @@
 
         const data = await response.json();
 
-        verdictEl.textContent = "Verdict : " + data.verdict.toUpperCase();
-        probabilityEl.textContent =
-          "Probabilité de phishing : " + (data.probability * 100).toFixed(1) + " %";
+        // Verdict avec icônes
+        if (data.verdict === "phishing") {
+          verdictEl.innerHTML =
+            '<i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>' +
+            'Verdict : PHISHING';
+        } else {
+          verdictEl.innerHTML =
+            '<i class="fa-solid fa-circle-check text-success me-2"></i>' +
+            'Verdict : LEGIT';
+        }
 
+        // Probabilité avec icône
+        probabilityEl.innerHTML =
+          '<i class="fa-solid fa-gauge-high me-2"></i>' +
+          'Probabilité de phishing : ' +
+          (data.probability * 100).toFixed(1) + ' %';
+
+        // Liste des features
         featuresEl.innerHTML = "";
         (data.features || []).forEach(f => {
           const li = document.createElement("li");
@@ -114,7 +159,7 @@
         resultCard.classList.remove("d-none");
       } catch (err) {
         console.error(err);
-        alert("Erreur lors de l'appel à l'API (voir console).");
+        alert("Erreur lors de l\'appel à l\'API (voir console).");
       }
     });
   </script>
